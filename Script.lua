@@ -1,12 +1,11 @@
 -- MiLibrary distribution build
 -- Version 1.0.0
--- Soft-obfuscated build. Public API intentionally preserved.
-local Players = game:GetService("Players")
-local _ts = game:GetService("_ts")
-local _uis = game:GetService("_uis")
-local _hs = game:GetService("_hs")
+local _a = game:GetService("Players")
+local _b = game:GetService("TweenService")
+local _c = game:GetService("UserInputService")
+local _d = game:GetService("HttpService")
 
-local _p = Players._p
+local _e = _a.LocalPlayer
 
 local Library = {}
 Library.__index = Library
@@ -117,7 +116,7 @@ local function getGuiParent()
         return game:GetService("CoreGui")
     end)
     if ok and gui then return gui end
-    return _p:WaitForChild("PlayerGui")
+    return _e:WaitForChild("PlayerGui")
 end
 
 local function new(className, props)
@@ -155,7 +154,7 @@ local function padding(obj, amount)
 end
 
 local function tween(obj, time, props)
-    local t = _ts:Create(
+    local t = _b:Create(
         obj,
         TweenInfo.new(time or Library.Settings.AnimationSpeed, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
         props
@@ -484,7 +483,7 @@ function Library:CreateWindow(config)
         end
     end)
 
-    _uis.InputChanged:Connect(function(input)
+    _c.InputChanged:Connect(function(input)
         if not dragging then return end
         if input.UserInputType ~= Enum.UserInputType.MouseMovement
         and input.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -519,6 +518,8 @@ function Library:CreateWindow(config)
         end)
     end
 
+    local lib = self
+
     local windowObject = {}
 
     function windowObject:CreateTab(tabConfig)
@@ -533,9 +534,9 @@ function Library:CreateWindow(config)
 
         local button = new("TextButton", {
             Size = UDim2.new(1,-4,0,34),
-            BackgroundColor3 = self.Theme.Secondary,
+            BackgroundColor3 = lib.Theme.Secondary,
             Text = "  " .. Tab.Name,
-            TextColor3 = self.Theme.SubText,
+            TextColor3 = lib.Theme.SubText,
             Font = Enum.Font.GothamMedium,
             TextSize = 11,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -550,11 +551,11 @@ function Library:CreateWindow(config)
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
             ScrollBarThickness = 2,
-            ScrollBarImageColor3 = self.Theme.Accent,
+            ScrollBarImageColor3 = lib.Theme.Accent,
             CanvasSize = UDim2.new(),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             Visible = false,
-            Parent = self.Content
+            Parent = lib.Content
         })
         padding(page,2)
 
@@ -568,29 +569,29 @@ function Library:CreateWindow(config)
         Tab.Button = button
 
         function Tab:Select()
-            for _, other in ipairs(self.Tabs) do
+            for _, other in ipairs(lib.Tabs) do
                 other.Page.Visible = false
                 tween(other.Button,0.12,{
-                    BackgroundColor3 = self.Theme.Secondary,
-                    TextColor3 = self.Theme.SubText
+                    BackgroundColor3 = lib.Theme.Secondary,
+                    TextColor3 = lib.Theme.SubText
                 })
             end
 
             page.Visible = true
             tween(button,0.12,{
-                BackgroundColor3 = self.Theme.Accent,
+                BackgroundColor3 = lib.Theme.Accent,
                 TextColor3 = Color3.new(1,1,1)
             })
         end
 
         button.MouseButton1Click:Connect(function()
-            self:_click()
+            lib:_click()
             Tab:Select()
         end)
 
-        table.insert(self.Tabs,Tab)
+        table.insert(lib.Tabs,Tab)
 
-        if #self.Tabs == 1 then
+        if #lib.Tabs == 1 then
             Tab:Select()
         end
 
@@ -599,7 +600,7 @@ function Library:CreateWindow(config)
                 Size = UDim2.new(1,-4,0,24),
                 BackgroundTransparency = 1,
                 Text = string.upper(text or "SECTION"),
-                TextColor3 = self.Theme.SubText,
+                TextColor3 = lib.Theme.SubText,
                 Font = Enum.Font.GothamBold,
                 TextSize = 9,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -612,9 +613,9 @@ function Library:CreateWindow(config)
             cfg = cfg or {}
             local button = new("TextButton", {
                 Size = UDim2.new(1,-4,0,38),
-                BackgroundColor3 = self.Theme.Element,
+                BackgroundColor3 = lib.Theme.Element,
                 Text = cfg.Name or "Button",
-                TextColor3 = self.Theme.Text,
+                TextColor3 = lib.Theme.Text,
                 Font = Enum.Font.GothamMedium,
                 TextSize = 11,
                 AutoButtonColor = false,
@@ -623,17 +624,17 @@ function Library:CreateWindow(config)
             corner(button,6)
 
             button.MouseEnter:Connect(function()
-                tween(button,0.12,{BackgroundColor3=self.Theme.Hover})
+                tween(button,0.12,{BackgroundColor3=lib.Theme.Hover})
             end)
             button.MouseLeave:Connect(function()
-                tween(button,0.12,{BackgroundColor3=self.Theme.Element})
+                tween(button,0.12,{BackgroundColor3=lib.Theme.Element})
             end)
             button.MouseButton1Click:Connect(function()
-                self:_click()
+                lib:_click()
                 callback(cfg.Callback)
             end)
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 button.BackgroundColor3=t.Element
                 button.TextColor3=t.Text
             end})
@@ -653,7 +654,7 @@ function Library:CreateWindow(config)
 
             local holder = new("Frame", {
                 Size = UDim2.new(1,-4,0,42),
-                BackgroundColor3 = self.Theme.Element,
+                BackgroundColor3 = lib.Theme.Element,
                 Parent = page
             })
             corner(holder,6)
@@ -663,7 +664,7 @@ function Library:CreateWindow(config)
                 Position = UDim2.fromOffset(10,0),
                 BackgroundTransparency = 1,
                 Text = cfg.Name or "Toggle",
-                TextColor3 = self.Theme.Text,
+                TextColor3 = lib.Theme.Text,
                 Font = Enum.Font.GothamMedium,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -673,7 +674,7 @@ function Library:CreateWindow(config)
             local switch = new("TextButton", {
                 Size = UDim2.fromOffset(38,20),
                 Position = UDim2.new(1,-48,0.5,-10),
-                BackgroundColor3 = self.Theme.Border,
+                BackgroundColor3 = lib.Theme.Border,
                 Text = "",
                 AutoButtonColor = false,
                 Parent = holder
@@ -683,7 +684,7 @@ function Library:CreateWindow(config)
             local knob = new("Frame", {
                 Size = UDim2.fromOffset(16,16),
                 Position = UDim2.fromOffset(2,2),
-                BackgroundColor3 = self.Theme.Text,
+                BackgroundColor3 = lib.Theme.Text,
                 Parent = switch
             })
             corner(knob,10)
@@ -693,7 +694,7 @@ function Library:CreateWindow(config)
                 if cfg.Flag then Library.Flags[cfg.Flag] = state end
 
                 tween(switch,0.16,{
-                    BackgroundColor3 = state and self.Theme.Accent or self.Theme.Border
+                    BackgroundColor3 = state and lib.Theme.Accent or lib.Theme.Border
                 })
                 tween(knob,0.16,{
                     Position = state and UDim2.new(1,-18,0,2) or UDim2.fromOffset(2,2)
@@ -703,7 +704,7 @@ function Library:CreateWindow(config)
             end
 
             switch.MouseButton1Click:Connect(function()
-                self:_click()
+                lib:_click()
                 update(not state,true)
             end)
 
@@ -713,7 +714,7 @@ function Library:CreateWindow(config)
             function api:Set(value) update(value,true) end
             function api:Get() return state end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
                 switch.BackgroundColor3=state and t.Accent or t.Border
@@ -733,7 +734,7 @@ function Library:CreateWindow(config)
 
             local holder = new("Frame", {
                 Size = UDim2.new(1,-4,0,55),
-                BackgroundColor3 = self.Theme.Element,
+                BackgroundColor3 = lib.Theme.Element,
                 Parent = page
             })
             corner(holder,6)
@@ -743,7 +744,7 @@ function Library:CreateWindow(config)
                 Position = UDim2.fromOffset(9,5),
                 BackgroundTransparency = 1,
                 Text = cfg.Name or "Slider",
-                TextColor3 = self.Theme.Text,
+                TextColor3 = lib.Theme.Text,
                 Font = Enum.Font.GothamMedium,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -755,7 +756,7 @@ function Library:CreateWindow(config)
                 Position = UDim2.new(1,-63,0,5),
                 BackgroundTransparency = 1,
                 Text = tostring(value),
-                TextColor3 = self.Theme.SubText,
+                TextColor3 = lib.Theme.SubText,
                 Font = Enum.Font.GothamMedium,
                 TextSize = 10,
                 TextXAlignment = Enum.TextXAlignment.Right,
@@ -765,14 +766,14 @@ function Library:CreateWindow(config)
             local bar = new("Frame", {
                 Size = UDim2.new(1,-18,0,5),
                 Position = UDim2.fromOffset(9,39),
-                BackgroundColor3 = self.Theme.Border,
+                BackgroundColor3 = lib.Theme.Border,
                 Parent = holder
             })
             corner(bar,5)
 
             local fill = new("Frame", {
                 Size = UDim2.new(0,0,1,0),
-                BackgroundColor3 = self.Theme.Accent,
+                BackgroundColor3 = lib.Theme.Accent,
                 Parent = bar
             })
             corner(fill,5)
@@ -802,17 +803,17 @@ function Library:CreateWindow(config)
 
             hit.MouseButton1Down:Connect(function()
                 draggingSlider=true
-                self:_click()
+                lib:_click()
             end)
 
-            _uis.InputEnded:Connect(function(input)
+            UserInputService.InputEnded:Connect(function(input)
                 if input.UserInputType==Enum.UserInputType.MouseButton1
                 or input.UserInputType==Enum.UserInputType.Touch then
                     draggingSlider=false
                 end
             end)
 
-            _uis.InputChanged:Connect(function(input)
+            _c.InputChanged:Connect(function(input)
                 if not draggingSlider then return end
                 if input.UserInputType~=Enum.UserInputType.MouseMovement
                 and input.UserInputType~=Enum.UserInputType.Touch then return end
@@ -826,7 +827,7 @@ function Library:CreateWindow(config)
             function api:Set(v) setValue(v,true) end
             function api:Get() return value end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
                 valueLabel.TextColor3=t.SubText
@@ -845,7 +846,7 @@ function Library:CreateWindow(config)
 
             local holder = new("Frame", {
                 Size = UDim2.new(1,-4,0,38),
-                BackgroundColor3 = self.Theme.Element,
+                BackgroundColor3 = lib.Theme.Element,
                 ClipsDescendants = true,
                 Parent = page
             })
@@ -864,7 +865,7 @@ function Library:CreateWindow(config)
                 Position = UDim2.fromOffset(10,0),
                 BackgroundTransparency = 1,
                 Text = cfg.Name or "Dropdown",
-                TextColor3 = self.Theme.Text,
+                TextColor3 = lib.Theme.Text,
                 Font = Enum.Font.GothamMedium,
                 TextSize = 11,
                 TextXAlignment = Enum.TextXAlignment.Left,
@@ -876,7 +877,7 @@ function Library:CreateWindow(config)
                 Position = UDim2.new(0.5,0,0,0),
                 BackgroundTransparency = 1,
                 Text = tostring(current),
-                TextColor3 = self.Theme.SubText,
+                TextColor3 = lib.Theme.SubText,
                 Font = Enum.Font.Gotham,
                 TextSize = 10,
                 TextXAlignment = Enum.TextXAlignment.Right,
@@ -905,9 +906,9 @@ function Library:CreateWindow(config)
                 for _,option in ipairs(options) do
                     local b=new("TextButton",{
                         Size=UDim2.new(1,-10,0,28),
-                        BackgroundColor3=self.Theme.Hover,
+                        BackgroundColor3=lib.Theme.Hover,
                         Text=tostring(option),
-                        TextColor3=self.Theme.Text,
+                        TextColor3=lib.Theme.Text,
                         Font=Enum.Font.Gotham,
                         TextSize=10,
                         AutoButtonColor=false,
@@ -920,7 +921,7 @@ function Library:CreateWindow(config)
                         selected.Text=tostring(option)
                         if cfg.Flag then Library.Flags[cfg.Flag]=current end
                         callback(cfg.Callback,current)
-                        self:_click()
+                        lib:_click()
 
                         open=false
                         holder.Size=UDim2.new(1,-4,0,38)
@@ -929,7 +930,7 @@ function Library:CreateWindow(config)
             end
 
             main.MouseButton1Click:Connect(function()
-                self:_click()
+                lib:_click()
                 open=not open
                 rebuild()
 
@@ -959,7 +960,7 @@ function Library:CreateWindow(config)
             end
             function api:Get() return current end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
                 selected.TextColor3=t.SubText
@@ -979,7 +980,7 @@ function Library:CreateWindow(config)
 
             local holder=new("Frame",{
                 Size=UDim2.new(1,-4,0,38),
-                BackgroundColor3=self.Theme.Element,
+                BackgroundColor3=lib.Theme.Element,
                 ClipsDescendants=true,
                 Parent=page
             })
@@ -998,7 +999,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.fromOffset(10,0),
                 BackgroundTransparency=1,
                 Text=cfg.Name or "Multi Dropdown",
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.GothamMedium,
                 TextSize=11,
                 TextXAlignment=Enum.TextXAlignment.Left,
@@ -1010,7 +1011,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.new(0.5,0,0,0),
                 BackgroundTransparency=1,
                 Text="None",
-                TextColor3=self.Theme.SubText,
+                TextColor3=lib.Theme.SubText,
                 Font=Enum.Font.Gotham,
                 TextSize=10,
                 TextXAlignment=Enum.TextXAlignment.Right,
@@ -1042,7 +1043,7 @@ function Library:CreateWindow(config)
                 for _,option in ipairs(options) do
                     local b=new("TextButton",{
                         Size=UDim2.new(1,-10,0,28),
-                        BackgroundColor3=selected[option] and self.Theme.Accent or self.Theme.Hover,
+                        BackgroundColor3=selected[option] and lib.Theme.Accent or lib.Theme.Hover,
                         Text=tostring(option),
                         TextColor3=Color3.new(1,1,1),
                         Font=Enum.Font.Gotham,
@@ -1058,13 +1059,13 @@ function Library:CreateWindow(config)
                         updateText()
                         rebuild()
                         callback(cfg.Callback,selected)
-                        self:_click()
+                        lib:_click()
                     end)
                 end
             end
 
             main.MouseButton1Click:Connect(function()
-                self:_click()
+                lib:_click()
                 open=not open
                 rebuild()
                 holder.Size=UDim2.new(1,-4,0,38+(open and math.clamp(#options*31+6,0,155) or 0))
@@ -1082,7 +1083,7 @@ function Library:CreateWindow(config)
             end
             function api:Get() return selected end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
                 valueLabel.TextColor3=t.SubText
@@ -1096,7 +1097,7 @@ function Library:CreateWindow(config)
 
             local holder=new("Frame",{
                 Size=UDim2.new(1,-4,0,55),
-                BackgroundColor3=self.Theme.Element,
+                BackgroundColor3=lib.Theme.Element,
                 Parent=page
             })
             corner(holder,6)
@@ -1106,7 +1107,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.fromOffset(9,5),
                 BackgroundTransparency=1,
                 Text=cfg.Name or "Input",
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.GothamMedium,
                 TextSize=11,
                 TextXAlignment=Enum.TextXAlignment.Left,
@@ -1116,11 +1117,11 @@ function Library:CreateWindow(config)
             local box=new("TextBox",{
                 Size=UDim2.new(1,-18,0,25),
                 Position=UDim2.fromOffset(9,27),
-                BackgroundColor3=self.Theme.Secondary,
+                BackgroundColor3=lib.Theme.Secondary,
                 Text="",
                 PlaceholderText=cfg.PlaceholderText or "",
-                PlaceholderColor3=self.Theme.SubText,
-                TextColor3=self.Theme.Text,
+                PlaceholderColor3=lib.Theme.SubText,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.Gotham,
                 TextSize=10,
                 ClearTextOnFocus=false,
@@ -1141,7 +1142,7 @@ function Library:CreateWindow(config)
             function api:Set(v) box.Text=tostring(v) end
             function api:Get() return box.Text end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
                 box.BackgroundColor3=t.Secondary
@@ -1159,7 +1160,7 @@ function Library:CreateWindow(config)
 
             local holder=new("Frame",{
                 Size=UDim2.new(1,-4,0,42),
-                BackgroundColor3=self.Theme.Element,
+                BackgroundColor3=lib.Theme.Element,
                 Parent=page
             })
             corner(holder,6)
@@ -1169,7 +1170,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.fromOffset(10,0),
                 BackgroundTransparency=1,
                 Text=cfg.Name or "Keybind",
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.GothamMedium,
                 TextSize=11,
                 TextXAlignment=Enum.TextXAlignment.Left,
@@ -1179,9 +1180,9 @@ function Library:CreateWindow(config)
             local bind=new("TextButton",{
                 Size=UDim2.fromOffset(70,25),
                 Position=UDim2.new(1,-80,0.5,-12),
-                BackgroundColor3=self.Theme.Secondary,
+                BackgroundColor3=lib.Theme.Secondary,
                 Text=tostring(current),
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.Gotham,
                 TextSize=9,
                 AutoButtonColor=false,
@@ -1194,10 +1195,10 @@ function Library:CreateWindow(config)
             bind.MouseButton1Click:Connect(function()
                 listening=true
                 bind.Text="Press key"
-                self:_click()
+                lib:_click()
             end)
 
-            _uis.InputBegan:Connect(function(input,processed)
+            _c.InputBegan:Connect(function(input,processed)
                 if listening then
                     if input.UserInputType==Enum.UserInputType.Keyboard then
                         current=input.KeyCode.Name
@@ -1223,7 +1224,7 @@ function Library:CreateWindow(config)
             end
             function api:Get() return current end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
                 bind.BackgroundColor3=t.Secondary
@@ -1240,7 +1241,7 @@ function Library:CreateWindow(config)
 
             local holder=new("Frame",{
                 Size=UDim2.new(1,-4,0,42),
-                BackgroundColor3=self.Theme.Element,
+                BackgroundColor3=lib.Theme.Element,
                 Parent=page
             })
             corner(holder,6)
@@ -1250,7 +1251,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.fromOffset(10,0),
                 BackgroundTransparency=1,
                 Text=cfg.Name or "Color",
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.GothamMedium,
                 TextSize=11,
                 TextXAlignment=Enum.TextXAlignment.Left,
@@ -1268,18 +1269,18 @@ function Library:CreateWindow(config)
             corner(preview,6)
 
             preview.MouseButton1Click:Connect(function()
-                self:_click()
+                lib:_click()
                 local picker=new("Color3Value",{Value=color})
                 local dialog=new("TextBox",{
                     Size=UDim2.fromOffset(210,38),
                     Position=UDim2.new(0.5,-105,0.5,-19),
-                    BackgroundColor3=self.Theme.Element,
+                    BackgroundColor3=lib.Theme.Element,
                     Text="R,G,B (0-255)",
-                    TextColor3=self.Theme.Text,
+                    TextColor3=lib.Theme.Text,
                     Font=Enum.Font.Gotham,
                     TextSize=10,
                     ClearTextOnFocus=false,
-                    Parent=self.Gui
+                    Parent=lib.Gui
                 })
                 corner(dialog,6)
                 dialog:CaptureFocus()
@@ -1312,7 +1313,7 @@ function Library:CreateWindow(config)
             end
             function api:Get() return color end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 label.TextColor3=t.Text
             end})
@@ -1325,7 +1326,7 @@ function Library:CreateWindow(config)
                 Size=UDim2.new(1,-4,0,30),
                 BackgroundTransparency=1,
                 Text=tostring(text or ""),
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.Gotham,
                 TextSize=11,
                 TextWrapped=true,
@@ -1343,7 +1344,7 @@ function Library:CreateWindow(config)
 
             local holder=new("Frame",{
                 Size=UDim2.new(1,-4,0,64),
-                BackgroundColor3=self.Theme.Element,
+                BackgroundColor3=lib.Theme.Element,
                 Parent=page
             })
             corner(holder,6)
@@ -1353,7 +1354,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.fromOffset(9,6),
                 BackgroundTransparency=1,
                 Text=cfg.Title or "Paragraph",
-                TextColor3=self.Theme.Text,
+                TextColor3=lib.Theme.Text,
                 Font=Enum.Font.GothamBold,
                 TextSize=11,
                 TextXAlignment=Enum.TextXAlignment.Left,
@@ -1365,7 +1366,7 @@ function Library:CreateWindow(config)
                 Position=UDim2.fromOffset(9,27),
                 BackgroundTransparency=1,
                 Text=cfg.Content or "",
-                TextColor3=self.Theme.SubText,
+                TextColor3=lib.Theme.SubText,
                 Font=Enum.Font.Gotham,
                 TextSize=10,
                 TextWrapped=true,
@@ -1379,7 +1380,7 @@ function Library:CreateWindow(config)
                 content.Text=tostring(c or "")
             end
 
-            table.insert(self.Elements,{_theme=function(t)
+            table.insert(lib.Elements,{_theme=function(t)
                 holder.BackgroundColor3=t.Element
                 title.TextColor3=t.Text
                 content.TextColor3=t.SubText
@@ -1391,7 +1392,7 @@ function Library:CreateWindow(config)
         function Tab:CreateDivider()
             return new("Frame",{
                 Size=UDim2.new(1,-4,0,1),
-                BackgroundColor3=self.Theme.Border,
+                BackgroundColor3=lib.Theme.Border,
                 BorderSizePixel=0,
                 Parent=page
             })
@@ -1402,7 +1403,7 @@ function Library:CreateWindow(config)
 
     local toggleKey=config.ToggleKey or Enum.KeyCode.RightShift
 
-    _uis.InputBegan:Connect(function(input,processed)
+    _c.InputBegan:Connect(function(input,processed)
         if processed then return end
         if input.KeyCode==toggleKey then
             self:SetVisibility(not self.Visible)
