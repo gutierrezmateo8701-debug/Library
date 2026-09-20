@@ -1,11 +1,40 @@
--- MiLibrary distribution build
--- Version 1.0.0
-local _a = game:GetService("Players")
-local _b = game:GetService("TweenService")
-local _c = game:GetService("UserInputService")
-local _d = game:GetService("HttpService")
+--[[
+    MiLibrary
+    Compact Roblox UI Library
+    Version 1.0.0
 
-local _e = _a.LocalPlayer
+    Single-file source distribution.
+
+    API:
+      Library:CreateWindow()
+      Window:CreateTab()
+      Tab:CreateSection()
+      Tab:CreateButton()
+      Tab:CreateToggle()
+      Tab:CreateSlider()
+      Tab:CreateDropdown()
+      Tab:CreateMultiDropdown()
+      Tab:CreateInput()
+      Tab:CreateKeybind()
+      Tab:CreateColorPicker()
+      Tab:CreateLabel()
+      Tab:CreateParagraph()
+      Tab:CreateDivider()
+
+      Library:Notify()
+      Library:SetTheme()
+      Library:SetVisibility()
+      Library:Destroy()
+
+    This is an original implementation with a Rayfield-like public API style.
+]]
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
 
 local Library = {}
 Library.__index = Library
@@ -116,7 +145,7 @@ local function getGuiParent()
         return game:GetService("CoreGui")
     end)
     if ok and gui then return gui end
-    return _e:WaitForChild("PlayerGui")
+    return LocalPlayer:WaitForChild("PlayerGui")
 end
 
 local function new(className, props)
@@ -154,7 +183,7 @@ local function padding(obj, amount)
 end
 
 local function tween(obj, time, props)
-    local t = _b:Create(
+    local t = TweenService:Create(
         obj,
         TweenInfo.new(time or Library.Settings.AnimationSpeed, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
         props
@@ -483,7 +512,7 @@ function Library:CreateWindow(config)
         end
     end)
 
-    _c.InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(function(input)
         if not dragging then return end
         if input.UserInputType ~= Enum.UserInputType.MouseMovement
         and input.UserInputType ~= Enum.UserInputType.Touch then return end
@@ -801,9 +830,23 @@ function Library:CreateWindow(config)
 
             local draggingSlider=false
 
-            hit.MouseButton1Down:Connect(function()
+            local function updateFromX(x, fire)
+                local width = math.max(bar.AbsoluteSize.X, 1)
+                local percent = math.clamp((x - bar.AbsolutePosition.X) / width, 0, 1)
+                setValue(min + (max - min) * percent, fire)
+            end
+
+            local function beginDrag(input)
                 draggingSlider=true
                 lib:_click()
+                updateFromX(input.Position.X, true)
+            end
+
+            hit.InputBegan:Connect(function(input)
+                if input.UserInputType==Enum.UserInputType.MouseButton1
+                or input.UserInputType==Enum.UserInputType.Touch then
+                    beginDrag(input)
+                end
             end)
 
             UserInputService.InputEnded:Connect(function(input)
@@ -813,12 +856,12 @@ function Library:CreateWindow(config)
                 end
             end)
 
-            _c.InputChanged:Connect(function(input)
+            UserInputService.InputChanged:Connect(function(input)
                 if not draggingSlider then return end
-                if input.UserInputType~=Enum.UserInputType.MouseMovement
-                and input.UserInputType~=Enum.UserInputType.Touch then return end
-                local p=(input.Position.X-bar.AbsolutePosition.X)/bar.AbsoluteSize.X
-                setValue(min+(max-min)*math.clamp(p,0,1),true)
+                if input.UserInputType==Enum.UserInputType.MouseMovement
+                or input.UserInputType==Enum.UserInputType.Touch then
+                    updateFromX(input.Position.X, true)
+                end
             end)
 
             setValue(value,false)
@@ -1198,7 +1241,7 @@ function Library:CreateWindow(config)
                 lib:_click()
             end)
 
-            _c.InputBegan:Connect(function(input,processed)
+            UserInputService.InputBegan:Connect(function(input,processed)
                 if listening then
                     if input.UserInputType==Enum.UserInputType.Keyboard then
                         current=input.KeyCode.Name
@@ -1403,7 +1446,7 @@ function Library:CreateWindow(config)
 
     local toggleKey=config.ToggleKey or Enum.KeyCode.RightShift
 
-    _c.InputBegan:Connect(function(input,processed)
+    UserInputService.InputBegan:Connect(function(input,processed)
         if processed then return end
         if input.KeyCode==toggleKey then
             self:SetVisibility(not self.Visible)
