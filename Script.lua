@@ -407,6 +407,10 @@ function Library:SetVisibility(value)
 end
 
 function Library:Destroy()
+    if self.MinimizeKeyConnection then
+        self.MinimizeKeyConnection:Disconnect()
+        self.MinimizeKeyConnection = nil
+    end
     if self.Gui then
         self.Gui:Destroy()
     end
@@ -414,6 +418,33 @@ function Library:Destroy()
     self.WindowFrame = nil
     self.Tabs = {}
     self.Elements = {}
+end
+
+function Library:ConfigureWindow(config)
+    config = config or {}
+
+    if config.Theme then
+        self:SetTheme(config.Theme)
+    end
+
+    if self.WindowFrame then
+        if config.Size then self.WindowFrame.Size = config.Size end
+        if config.Position then self.WindowFrame.Position = config.Position end
+        if config.Transparency then self.WindowFrame.BackgroundTransparency = config.Transparency end
+        if config.MinSize and self.WindowSizeConstraint then
+            self.WindowSizeConstraint.MinSize = config.MinSize
+        end
+    end
+
+    if self.Sidebar and config.ShowTabs ~= nil then
+        self.Sidebar.Visible = config.ShowTabs
+        if self.Content then
+            self.Content.Size = config.ShowTabs and UDim2.new(1,-148,1,-58) or UDim2.new(1,-16,1,-58)
+            self.Content.Position = config.ShowTabs and UDim2.fromOffset(142,52) or UDim2.fromOffset(8,52)
+        end
+    end
+
+    return self
 end
 
 function Library:Notify(config)
@@ -490,6 +521,18 @@ end
 function Library:CreateWindow(config)
     config = config or {}
 
+    -- Window configuration
+    local windowSize = config.Size or UDim2.fromOffset(520, 335)
+    local windowPosition = config.Position or UDim2.new(0.5, -260, 0.5, -167)
+    local draggable = config.Draggable ~= false
+    local showTabs = config.ShowTabs ~= false
+    local acrylic = config.Acrylic == true
+    local minimizeKey = config.MinimizeKey
+
+    if config.Theme and self.Themes[config.Theme] then
+        self:SetTheme(config.Theme)
+    end
+
     if self.Gui then
         self:Destroy()
     end
@@ -520,14 +563,23 @@ function Library:CreateWindow(config)
 
     self.WindowFrame = new("Frame", {
         Name = "Window",
-        Size = UDim2.fromOffset(config.Size and config.Size.X or 520, config.Size and config.Size.Y or 335),
-        Position = UDim2.new(0.5, -260, 0.5, -167),
+        Size = windowSize,
+        Position = windowPosition,
         BackgroundColor3 = self.Theme.Background,
         BorderSizePixel = 0,
         Parent = self.Gui
     })
     corner(self.WindowFrame, 9)
     self.WindowStroke = stroke(self.WindowFrame, self.Theme.Border)
+
+    self.WindowSizeConstraint = new("UISizeConstraint", {
+        MinSize = config.MinSize or Vector2.new(420, 300),
+        Parent = self.WindowFrame
+    })
+
+    if acrylic then
+        self.WindowFrame.BackgroundTransparency = tonumber(config.Transparency) or 0.08
+    end
 
     animateScale(self.WindowFrame, 0.88, 0.32)
 
@@ -595,6 +647,7 @@ function Library:CreateWindow(config)
         Parent = self.WindowFrame
     })
     corner(sidebar,7)
+    sidebar.Visible = showTabs
     self.Sidebar = sidebar
 
     local tabList = new("ScrollingFrame", {
@@ -616,8 +669,8 @@ function Library:CreateWindow(config)
     })
 
     self.Content = new("Frame", {
-        Size = UDim2.new(1,-148,1,-58),
-        Position = UDim2.fromOffset(142,52),
+        Size = showTabs and UDim2.new(1,-148,1,-58) or UDim2.new(1,-16,1,-58),
+        Position = showTabs and UDim2.fromOffset(142,52) or UDim2.fromOffset(8,52),
         BackgroundColor3 = self.Theme.Secondary,
         BorderSizePixel = 0,
         Parent = self.WindowFrame
@@ -647,6 +700,7 @@ function Library:CreateWindow(config)
     local startPos
 
     header.InputBegan:Connect(function(input)
+        if not draggable then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
@@ -673,6 +727,20 @@ function Library:CreateWindow(config)
             startPos.Y.Offset + delta.Y
         )
     end)
+
+    if minimizeKey then
+        if type(minimizeKey) == "string" then
+            minimizeKey = Enum.KeyCode[minimizeKey]
+        end
+        if typeof(minimizeKey) == "EnumItem" then
+            self.MinimizeKeyConnection = UserInputService.InputBegan:Connect(function(input, processed)
+                if not processed and input.KeyCode == minimizeKey then
+                    self:_click()
+                    self:SetVisibility(not self.Visible)
+                end
+            end)
+        end
+    end
 
     if self.Settings.MobileButton then
         self.MobileButton = new("TextButton", {
