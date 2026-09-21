@@ -309,14 +309,20 @@ local function padding(obj, amount)
     })
 end
 
-local function tween(obj, time, props)
+local function tween(obj, time, props, style, direction)
     local t = TweenService:Create(
         obj,
-        TweenInfo.new(time or Library.Settings.AnimationSpeed, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+        TweenInfo.new(time or Library.Settings.AnimationSpeed, style or Enum.EasingStyle.Quint, direction or Enum.EasingDirection.Out),
         props
     )
     t:Play()
     return t
+end
+
+local function animateScale(obj, fromScale, duration)
+    local scale = new("UIScale", {Scale = fromScale or 0.92, Parent = obj})
+    tween(scale, duration or 0.28, {Scale = 1}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    return scale
 end
 
 local function getFlag(flag, default)
@@ -380,7 +386,20 @@ end
 function Library:SetVisibility(value)
     self.Visible = value ~= false
     if self.WindowFrame then
-        self.WindowFrame.Visible = self.Visible
+        local scale = self.WindowFrame:FindFirstChildOfClass("UIScale")
+        if self.Visible then
+            self.WindowFrame.Visible = true
+            if scale then
+                scale.Scale = 0.88
+                tween(scale, 0.28, {Scale=1}, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+            end
+        elseif scale then
+            tween(scale, 0.18, {Scale=0.88}, Enum.EasingStyle.Quint, Enum.EasingDirection.In).Completed:Connect(function()
+                if not self.Visible and self.WindowFrame then self.WindowFrame.Visible=false end
+            end)
+        else
+            self.WindowFrame.Visible=false
+        end
     end
     if self.MobileButton then
         self.MobileButton.Visible = not self.Visible and self.Settings.MobileButton
@@ -509,6 +528,8 @@ function Library:CreateWindow(config)
     })
     corner(self.WindowFrame, 9)
     self.WindowStroke = stroke(self.WindowFrame, self.Theme.Border)
+
+    animateScale(self.WindowFrame, 0.88, 0.32)
 
     local header = new("Frame", {
         Size = UDim2.new(1,0,0,48),
@@ -1054,15 +1075,23 @@ function Library:CreateWindow(config)
                 Parent = main
             })
 
-            local list = new("Frame", {
+            local list = new("ScrollingFrame", {
                 Size = UDim2.new(1,0,0,0),
                 Position = UDim2.fromOffset(0,38),
                 BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ScrollBarThickness = 3,
+                ScrollBarImageColor3 = lib.Theme.Accent,
+                ScrollBarImageTransparency = 1,
+                CanvasSize = UDim2.new(),
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                ScrollingDirection = Enum.ScrollingDirection.Y,
                 Parent = holder
             })
 
             local layout = new("UIListLayout", {
                 Padding = UDim.new(0,3),
+                SortOrder = Enum.SortOrder.LayoutOrder,
                 Parent = list
             })
 
@@ -1106,7 +1135,8 @@ function Library:CreateWindow(config)
 
                 local count=#options
                 local height=open and math.clamp(count*31+6,0,155) or 0
-                holder.Size=UDim2.new(1,-4,0,38+height)
+                tween(holder, 0.18, {Size=UDim2.new(1,-4,0,38+height)})
+                tween(list, 0.18, {ScrollBarImageTransparency=open and 0 or 1})
             end)
 
             local api={}
@@ -1188,10 +1218,17 @@ function Library:CreateWindow(config)
                 Parent=main
             })
 
-            local list=new("Frame",{
+            local list=new("ScrollingFrame",{
                 Size=UDim2.new(1,0,0,0),
                 Position=UDim2.fromOffset(0,38),
                 BackgroundTransparency=1,
+                BorderSizePixel=0,
+                ScrollBarThickness=3,
+                ScrollBarImageColor3=lib.Theme.Accent,
+                ScrollBarImageTransparency=1,
+                CanvasSize=UDim2.new(),
+                AutomaticCanvasSize=Enum.AutomaticSize.Y,
+                ScrollingDirection=Enum.ScrollingDirection.Y,
                 Parent=holder
             })
 
