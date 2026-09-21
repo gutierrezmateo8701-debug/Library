@@ -407,6 +407,10 @@ function Library:SetVisibility(value)
 end
 
 function Library:Destroy()
+    if self.RGBConnection then
+        self.RGBConnection:Disconnect()
+        self.RGBConnection=nil
+    end
     if self.MinimizeKeyConnection then
         self.MinimizeKeyConnection:Disconnect()
         self.MinimizeKeyConnection = nil
@@ -418,6 +422,28 @@ function Library:Destroy()
     self.WindowFrame = nil
     self.Tabs = {}
     self.Elements = {}
+end
+
+function Library:SetRGBBorders(enabled)
+    self.RGBBorders = enabled == true
+    if self.RGBConnection then
+        self.RGBConnection:Disconnect()
+        self.RGBConnection=nil
+    end
+    if not self.RGBBorders then
+        if self.WindowStroke then self.WindowStroke.Color=self.Theme.Border end
+        return
+    end
+    local hue=0
+    self.RGBConnection=RunService.RenderStepped:Connect(function(dt)
+        if not self.Gui or not self.WindowFrame then return end
+        hue=(hue+dt*0.18)%1
+        local c=Color3.fromHSV(hue,0.9,1)
+        if self.WindowStroke then self.WindowStroke.Color=c end
+        for _,obj in ipairs(self.WindowFrame:GetDescendants()) do
+            if obj:IsA("UIStroke") then obj.Color=c end
+        end
+    end)
 end
 
 function Library:ConfigureWindow(config)
@@ -518,11 +544,102 @@ function Library:Notify(config)
     end)
 end
 
+function Library:_showKeySystem(settings)
+    settings = settings or {}
+    local expected = settings.Key or settings.Keys
+    if type(expected) == "table" then
+        local set = {}
+        for _, k in ipairs(expected) do set[tostring(k)] = true end
+        expected = set
+    else
+        expected = {[tostring(expected or "")]=true}
+    end
+
+    local gui = new("ScreenGui", {
+        Name = "MiLibrary_KeySystem_" .. tostring(math.random(10000,99999)),
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        Parent = getGuiParent()
+    })
+
+    local frame = new("Frame", {
+        Size = UDim2.fromOffset(340, 205),
+        Position = UDim2.new(0.5,-170,0.5,-102),
+        BackgroundColor3 = self.Theme.Background,
+        BorderSizePixel = 0,
+        Parent = gui
+    })
+    corner(frame,9)
+    stroke(frame,self.Theme.Border)
+    animateScale(frame,0.9,0.28)
+
+    new("TextLabel", {
+        Size = UDim2.new(1,-30,0,28), Position=UDim2.fromOffset(15,14),
+        BackgroundTransparency=1, Text=settings.Title or "Key System",
+        TextColor3=self.Theme.Text, Font=Enum.Font.GothamBold, TextSize=16,
+        TextXAlignment=Enum.TextXAlignment.Left, Parent=frame
+    })
+    new("TextLabel", {
+        Size = UDim2.new(1,-30,0,22), Position=UDim2.fromOffset(15,43),
+        BackgroundTransparency=1, Text=settings.Subtitle or "Enter your key to continue",
+        TextColor3=self.Theme.SubText, Font=Enum.Font.Gotham, TextSize=10,
+        TextXAlignment=Enum.TextXAlignment.Left, Parent=frame
+    })
+
+    local input = new("TextBox", {
+        Size=UDim2.new(1,-30,0,38), Position=UDim2.fromOffset(15,73),
+        BackgroundColor3=self.Theme.Element, BorderSizePixel=0,
+        PlaceholderText=settings.Placeholder or "Enter key...", Text="",
+        TextColor3=self.Theme.Text, PlaceholderColor3=self.Theme.SubText,
+        Font=Enum.Font.Gotham, TextSize=11, ClearTextOnFocus=false, Parent=frame
+    })
+    corner(input,6)
+
+    local status = new("TextLabel", {
+        Size=UDim2.new(1,-30,0,20), Position=UDim2.fromOffset(15,115),
+        BackgroundTransparency=1, Text="", TextColor3=self.Theme.Error,
+        Font=Enum.Font.Gotham, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left, Parent=frame
+    })
+
+    local verify = new("TextButton", {
+        Size=UDim2.new(1,-30,0,38), Position=UDim2.fromOffset(15,150),
+        BackgroundColor3=self.Theme.Accent, BorderSizePixel=0, Text="Verify",
+        TextColor3=Color3.new(1,1,1), Font=Enum.Font.GothamBold, TextSize=11,
+        AutoButtonColor=false, Parent=frame
+    })
+    corner(verify,6)
+
+    local done=false
+    verify.MouseButton1Click:Connect(function()
+        if expected[input.Text] then
+            done=true
+            status.Text="Key accepted!"
+            status.TextColor3=self.Theme.Success
+            task.wait(0.2)
+            gui:Destroy()
+        else
+            status.Text="Invalid key."
+            status.TextColor3=self.Theme.Error
+        end
+    end)
+
+    repeat task.wait() until done or not gui.Parent
+    return done
+end
+
 function Library:CreateWindow(config)
     config = config or {}
 
+    if config.KeySystem then
+        local keySettings = config.KeySettings or {}
+        if not self:_showKeySystem(keySettings) then
+            return nil
+        end
+    end
+
     -- Window configuration
-    local windowSize = config.Size or UDim2.fromOffset(520, 335)
+    local windowSize = config.Size or UDim2.fromOffset(460, 340)
     local windowPosition = config.Position or UDim2.new(0.5, -260, 0.5, -167)
     local draggable = config.Draggable ~= false
     local showTabs = config.ShowTabs ~= false
@@ -573,7 +690,7 @@ function Library:CreateWindow(config)
     self.WindowStroke = stroke(self.WindowFrame, self.Theme.Border)
 
     self.WindowSizeConstraint = new("UISizeConstraint", {
-        MinSize = config.MinSize or Vector2.new(420, 300),
+        MinSize = config.MinSize or Vector2.new(360, 260),
         Parent = self.WindowFrame
     })
 
@@ -593,7 +710,7 @@ function Library:CreateWindow(config)
         Size = UDim2.new(1,-105,0,22),
         Position = UDim2.fromOffset(14,7),
         BackgroundTransparency = 1,
-        Text = config.Name or "MiLibrary",
+        Text = config.Name or config.LoadingTitle or "MiLibrary",
         TextColor3 = self.Theme.Text,
         Font = Enum.Font.GothamBold,
         TextSize = 15,
@@ -605,7 +722,7 @@ function Library:CreateWindow(config)
         Size = UDim2.new(1,-105,0,16),
         Position = UDim2.fromOffset(14,28),
         BackgroundTransparency = 1,
-        Text = config.Subtitle or ("v" .. self.Version),
+        Text = config.Subtitle or config.LoadingSubtitle or ("v" .. self.Version),
         TextColor3 = self.Theme.SubText,
         Font = Enum.Font.Gotham,
         TextSize = 9,
@@ -1210,7 +1327,10 @@ function Library:CreateWindow(config)
                 local count=#options
                 local height=open and math.clamp(count*31+6,0,155) or 0
                 tween(holder, 0.18, {Size=UDim2.new(1,-4,0,38+height)})
-                tween(list, 0.18, {ScrollBarImageTransparency=open and 0 or 1})
+                tween(list, 0.18, {
+                    Size=UDim2.new(1,0,0,height),
+                    ScrollBarImageTransparency=open and 0 or 1
+                })
             end)
 
             local api={}
@@ -1349,7 +1469,12 @@ function Library:CreateWindow(config)
                 lib:_click()
                 open=not open
                 rebuild()
-                holder.Size=UDim2.new(1,-4,0,38+(open and math.clamp(#options*31+6,0,155) or 0))
+                local height = open and math.clamp(#options*31+6,0,155) or 0
+                tween(holder, 0.18, {Size=UDim2.new(1,-4,0,38+height)})
+                tween(list, 0.18, {
+                    Size=UDim2.new(1,0,0,height),
+                    ScrollBarImageTransparency=open and 0 or 1
+                })
             end)
 
             updateText()
@@ -1690,6 +1815,10 @@ function Library:CreateWindow(config)
             self:SetVisibility(not self.Visible)
         end
     end)
+
+    if config.RGBBorders then
+        self:SetRGBBorders(true)
+    end
 
     return windowObject
 end
