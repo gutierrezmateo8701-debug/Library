@@ -1123,7 +1123,13 @@ function Library:CreateWindow(config)
                         lib:_click()
 
                         open=false
-                        holder.Size=UDim2.new(1,-4,0,38)
+                        tween(holder, 0.18, {
+                            Size = UDim2.new(1,-4,0,38)
+                        })
+                        tween(list, 0.18, {
+                            Size = UDim2.new(1,0,0,0),
+                            ScrollBarImageTransparency = 1
+                        })
                     end)
                 end
             end
